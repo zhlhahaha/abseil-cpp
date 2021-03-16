@@ -27,7 +27,8 @@
 #include <cstdint>
 #include <ctime>
 #include <limits>
-
+#include <iostream>
+#include <stdio.h>
 #include "absl/base/internal/spinlock.h"
 #include "absl/base/internal/unscaledcycleclock.h"
 #include "absl/base/macros.h"
@@ -353,11 +354,13 @@ int64_t GetCurrentTimeNanos() {
   // last_sample was updated). This is harmless, because delta_cycles will wrap
   // and report a time much much bigger than min_cycles_per_sample. In that case
   // we will take the slow path.
-  uint64_t delta_cycles;
-  if (seq_read0 == seq_read1 && (seq_read0 & 1) == 0 &&
+  uint64_t delta_cycles; 
+  /*if (seq_read0 == seq_read1 && (seq_read0 & 1) == 0 &&
       (delta_cycles = now_cycles - base_cycles) < min_cycles_per_sample) {
+    std::cout << "Haolin001 adsl" << "\n" << std::endl;
     return base_ns + ((delta_cycles * nsscaled_per_cycle) >> kScale);
-  }
+  }*/
+  //std::cout << "Haolin003 adsl" << "\n" << std::endl;
   return GetCurrentTimeNanosSlowPath();
 }
 
@@ -419,11 +422,15 @@ static int64_t GetCurrentTimeNanosSlowPath()
   // Try running the fast path again; another thread may have updated the
   // sample between our run of the fast path and the sample we just read.
   uint64_t delta_cycles = now_cycles - sample.base_cycles;
+    printf("Haolin004-1, now cycle:%ld, base cycle:%ld, delta_cycles: %ld, nsscaled_per_cycle: %ld \n", now_cycles, sample.base_cycles, delta_cycles, sample.nsscaled_per_cycle);
   if (delta_cycles < sample.min_cycles_per_sample) {
     // Another thread updated the sample.  This path does not take the seqlock
     // so that blocked readers can make progress without blocking new readers.
     estimated_base_ns = sample.base_ns +
         ((delta_cycles * sample.nsscaled_per_cycle) >> kScale);
+    //printf("Haolin004-1, now cycle:%ld, base cycle:%ld, delta_cycles: %ld, nsscaled_per_cycle: %ld \n", now_cycles, sample.base_cycles, delta_cycles, sample.nsscaled_per_cycle);
+    //printf("Haolin004-1, nsscaled_per_cycle: %ld \n", sample.nsscaled_per_cycle);
+    //printf("Haolin004-2 absl GetCurrentTimeNanosSlowPath, estimated_base_ns: %ld \n", estimated_base_ns);
     time_state.stats_fast_slow_paths++;
   } else {
     estimated_base_ns =
@@ -431,6 +438,7 @@ static int64_t GetCurrentTimeNanosSlowPath()
   }
 
   time_state.lock.Unlock();
+  //printf("Haolin004 absl GetCurrentTimeNanosSlowPath, now_ns: %ld, estimated_base_ns: %ld \n", now_ns, estimated_base_ns);
 
   return estimated_base_ns;
 }
@@ -445,6 +453,7 @@ static uint64_t UpdateLastSample(uint64_t now_cycles, uint64_t now_ns,
   uint64_t estimated_base_ns = now_ns;
   uint64_t lock_value =
       SeqAcquire(&time_state.seq);  // acquire seqlock to block readers
+  //printf("Haolin004-3 absl UpdateLastSample nsscaled_per_cycle: %ld \n", sample->nsscaled_per_cycle);
 
   // The 5s in the next if-statement limits the time for which we will trust
   // the cycle counter and our last sample to give a reasonable result.
@@ -503,6 +512,9 @@ static uint64_t UpdateLastSample(uint64_t now_cycles, uint64_t now_ns,
     ns = kMinNSBetweenSamples + diff_ns - (diff_ns / 16);
     uint64_t new_nsscaled_per_cycle =
         SafeDivideAndScale(ns, assumed_next_sample_delta_cycles);
+    printf("Haolin004-3, absl UpdateLastSample new_nsscaled_per_cycle:%ld\n", new_nsscaled_per_cycle);
+    printf("Haolin004-3, absl UpdateLastSample ns:%ld (diff_ns:%ld, now_ns: %ld, estimated_base_ns: %ld)\n", ns, diff_ns, now_ns, estimated_base_ns);
+    printf("Haolin004-3, absl UpdateLastSample assumed_next_sample_delta_cycles:%ld (kMinNSBetweenSamples: %ld, measured_nsscaled_per_cycle: %ld, delta_cycles: %ld) \n", assumed_next_sample_delta_cycles, kMinNSBetweenSamples, measured_nsscaled_per_cycle, delta_cycles);
     if (new_nsscaled_per_cycle != 0 &&
         diff_ns < 100 * 1000 * 1000 && -diff_ns < 100 * 1000 * 1000) {
       // record the cycle time measurement
@@ -532,6 +544,7 @@ static uint64_t UpdateLastSample(uint64_t now_cycles, uint64_t now_ns,
   }
 
   SeqRelease(&time_state.seq, lock_value);  // release the readers
+  printf("Haolin004-4 absl UpdateLastSample nsscaled_per_cycle: %ld \n", time_state.last_sample.nsscaled_per_cycle.load(std::memory_order_relaxed));
 
   return estimated_base_ns;
 }

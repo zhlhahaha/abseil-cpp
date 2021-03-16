@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "absl/base/internal/unscaledcycleclock.h"
-
+#include <stdio.h>
 #if ABSL_USE_UNSCALED_CYCLECLOCK
 
 #if defined(_WIN32)
@@ -30,7 +30,6 @@
 #endif
 
 #include "absl/base/internal/sysinfo.h"
-
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace base_internal {
@@ -103,13 +102,26 @@ double UnscaledCycleClock::Frequency() {
 
 #elif defined(__aarch64__)
 
+#define arch_counter_enforce_ordering(val) do {                         \
+        int64_t tmp, _val = (val);                                          \
+                                                                        \
+        asm volatile(                                                   \
+        "       eor     %0, %1, %1\n"                                   \
+        "       add     %0, sp, %0\n"                                   \
+        "       ldr     xzr, [%0]"                                      \
+        : "=r" (tmp) : "r" (_val));                                     \
+} while (0)
+
 // System timer of ARMv8 runs at a different frequency than the CPU's.
 // The frequency is fixed, typically in the range 1-50MHz.  It can be
 // read at CNTFRQ special register.  We assume the OS has set up
 // the virtual timer properly.
 int64_t UnscaledCycleClock::Now() {
   int64_t virtual_timer_value;
+  isb();
   asm volatile("mrs %0, cntvct_el0" : "=r"(virtual_timer_value));
+  isb();
+  printf("Haolin006 cntvct_el0 old: %ld\n", virtual_timer_value);
   return virtual_timer_value;
 }
 

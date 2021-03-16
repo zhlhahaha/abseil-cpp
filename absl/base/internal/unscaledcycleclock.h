@@ -52,7 +52,7 @@
 #else
 #define ABSL_HAVE_UNSCALED_CYCLECLOCK_IMPLEMENTATION 0
 #endif
-
+#define isb()        asm volatile("isb" : : : "memory")
 // The following platforms often disable access to the hardware
 // counter (through a sandbox) even if the underlying hardware has a
 // usable counter. The CycleTimer interface also requires a *scaled*

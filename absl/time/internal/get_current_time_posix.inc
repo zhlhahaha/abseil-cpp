@@ -3,7 +3,7 @@
 #include <sys/time.h>
 #include <ctime>
 #include <cstdint>
-
+//#include <stdio.h>
 #include "absl/base/internal/raw_logging.h"
 
 namespace absl {
@@ -15,6 +15,7 @@ static int64_t GetCurrentTimeNanosFromSystem() {
   struct timespec ts;
   ABSL_RAW_CHECK(clock_gettime(CLOCK_REALTIME, &ts) == 0,
                  "Failed to read real-time clock.");
+//  printf("Haolin003 absl clock_gettime, sec: %ld, nsec: %ld \n", ts.tv_sec, ts.tv_nsec);
   return (int64_t{ts.tv_sec} * kNanosPerSecond +
           int64_t{ts.tv_nsec});
 }
